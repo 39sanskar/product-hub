@@ -11,8 +11,8 @@ import {
 
 // USER QUERIES
 export const createUser = async (data: NewUser) => {
-  const [user] = await db.insert(users).values(data).returning(); // it return array so destructuring [user]
-  
+
+  const [user] = await db.insert(users).values(data).returning();
   return user;
 };
 
