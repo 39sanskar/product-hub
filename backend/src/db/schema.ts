@@ -1,74 +1,139 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { relations } from "drizzle-orm";
 
+// ============= USERS TABLE ============= 
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),  // here using clerkId as the user id
-  email: text("email").notNull().unique(),
+  email: varchar("email").notNull().unique(),
   name: text("name"),
   imageUrl: text("image_url"),
-  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  updateAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+
+  createdAt: timestamp("created_at", { mode: "date" })
+    .notNull()
+    .defaultNow(),
+
+  updatedAt: timestamp("updated_at", { mode: "date" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
+
+// ================ PRODUCTS TABLE =============== 
 
 export const products = pgTable("products", {
   id: uuid("id").defaultRandom().primaryKey(), // generated automatically by database 
+
   title: text("title").notNull(),
   description: text("description").notNull(),
   imageUrl: text("image_url").notNull(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),  // if you delete your user account it's going to delete all the products of that user 
-  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  updateAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+
+  price: integer("price").notNull(),
+
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),  // if you delete your user account it's going to delete all the products of that user 
+
+  createdAt: timestamp("created_at", { mode: "date" })
+    .notNull()
+    .defaultNow(),
+
+  updatedAt: timestamp("updated_at", { mode: "date" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
+// ================ COMMENTS TABLE =============== 
 
 export const comments = pgTable("comments", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   content: text("content").notNull(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade"}),
-  productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at", { mode: "date"}).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date"}).notNull().defaultNow(),
+
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+
+  createdAt: timestamp("created_at", { mode: "date" })
+    .notNull()
+    .defaultNow(),
+
+  updatedAt: timestamp("updated_at", { mode: "date" })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
+// ================= RELATIONS =============== 
 
-//  Relations define how tables connect to each other. This enables Drizzle's query API to automatically join related data when using `with: { relationName: true }`
-
-
-// Users Relations: A user can have many products and many comments `many()` means one user can have multiple related records
+// Users → Products & Comments
 export const usersRelations = relations(users, ({ many }) => ({
-  products: many(products), // one user can have many products
-  comments: many(comments), // one user can have many comments
+  products: many(products), 
+  comments: many(comments), 
 }));
 
-
-// Products Relations: a product belongs to one user and can have many comments `one()` means a single related record, `many()` means multiple related records
-export const productRelations = relations(products, ({ one , many }) => ({
+// Products → User & Comments
+export const productRelations = relations(products, ({ one, many }) => ({
+  user: one(users, {
+    fields: [products.userId],
+    references: [users.id],
+  }),
   comments: many(comments),
-  // `fields` = the foreign key column in THIS table (products.userId)
-  // `references` = the primary key column in the RELATED table (users.id)
-  user: one(users, { fields: [products.userId], references: [users.id] }),  // one product → one user
 }));
 
 
-// Comments Relations: A comment belongs to one user and one product
+// Comments → User & Product
 export const commentsRelations = relations(comments, ({ one }) => ({
-  // `comments.userId` is the foreign key,  `users.id` is the primary key
-  user: one(users, { fields: [comments.userId], references: [users.id] }), // One comment → one user
-  // `comments.productId` is the foreign key,  `products.id` is the primary key
-  product: one(products, { fields: [comments.productId], references: [products.id] }), // One comment → one product
+  user: one(users, {
+    fields: [comments.userId],
+    references: [users.id],
+  }),
+  product: one(products, {
+    fields: [comments.productId],
+    references: [products.id],
+  }),
 }));
 
 
-// Type inference
-export type User = typeof users.$inferSelect
-export type NewUser = typeof users.$inferInsert;
+// =============== TYPES (TYPE INFERENCE) ============== 
 
-export type Product = typeof products.$inferSelect;
-export type NewProduct = typeof products.$inferInsert;
+export type User = typeof users.$inferSelect;  // This creates a TypeScript type for data you SELECT from the database.
+export type NewUser = typeof users.$inferInsert;  // This creates a TypeScript type for data you INSERT into the database.
 
-export type Comment = typeof comments.$inferSelect;
-export type NewComment = typeof comments.$inferInsert;
+export type Product = typeof products.$inferSelect; // This creates a TypeScript type for data you SELECT from the database.
+export type NewProduct = typeof products.$inferInsert; // This creates a TypeScript type for data you INSERT into the database.
 
+export type Comment = typeof comments.$inferSelect;  // This creates a TypeScript type for data you SELECT from the database.
+export type NewComment = typeof comments.$inferInsert; // This creates a TypeScript type for data you INSERT into the database.
+
+/*
+
+- Relations define how tables connect to each other. This enables Drizzle's query API to automatically join related data when using `with: { relationName: true }`
+
+- Users Relations: A user can have many products and many comments `many()` means one user can have multiple related records
+
+- Products Relations: a product belongs to one user and can have many comments `one()` means a single related record, `many()` means multiple related records
+
+- fields = the foreign key column in THIS table (products.userId)
+- references = the primary key column in the RELATED table (users.id)
+
+- Comments Relations: A comment belongs to one user and one product
+- comments.userId is the foreign key, users.id is the primary key
+
+- One comment → one user
+- comments.productId is the foreign key, products.id is the primary key
+
+- $inferSelect → GET from DB
+- $inferInsert → SEND to DB
+
+- $inferSelect generates a type for rows returned from the database
+- $inferInsert generates a type for inserting new records.
+
+*/
