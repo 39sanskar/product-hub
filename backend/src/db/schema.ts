@@ -113,17 +113,15 @@ export type NewProduct = typeof products.$inferInsert; // This creates a TypeScr
 export type Comment = typeof comments.$inferSelect;  // This creates a TypeScript type for data you SELECT from the database.
 export type NewComment = typeof comments.$inferInsert; // This creates a TypeScript type for data you INSERT into the database.
 
-// USER
+// ============= UPDATE TYPES (SAFE) =============
 export type UpdateUser = Partial<
   Omit<NewUser, "id" | "createdAt" | "updatedAt">
 >;
 
-// PRODUCT
 export type UpdateProduct = Partial<
   Omit<NewProduct, "id" | "userId" | "createdAt" | "updatedAt">
 >;
 
-// COMMENT
 export type UpdateComment = Partial<
   Omit<NewComment, "id" | "userId" | "productId" | "createdAt" | "updatedAt">
 >;

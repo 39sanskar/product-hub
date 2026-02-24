@@ -11,24 +11,33 @@ import {
 
 // USER QUERIES
 export const createUser = async (data: NewUser) => {
-
   const [user] = await db.insert(users).values(data).returning();
   return user;
 };
 
 export const getUserById = async (id: string) => {
-  return db.query.users.findFirst({ where: eq(users.id, id) });
+  return db.query.users.findFirst({
+    where: eq(users.id, id),
+  });
 };
 
-export const updateUser = async (id: string, data:Partial<NewUser>) => { // Partial = all fields optional
-  const existingUser = await getUserById(id);
-  if (!existingUser) {
+type UpdateUser = Partial<
+  Omit<NewUser, "id" | "createdAt" | "updatedAt">
+>;
+
+export const updateUser = async (id: string, data: UpdateUser) => { // Partial = all fields optional
+  const [user] = await db
+    .update(users)
+    .set(data)
+    .where(eq(users.id, id))
+    .returning();
+
+  if (!user) {
     throw new Error(`User with id ${id} not found`);
   }
 
-  const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
-  return user; 
-} // Find user by ID → update given fields → return updated user
+  return user;
+}; // Find user by ID → update given fields → return updated user
 
 // upsert => create or update (“upsert” means Update if exists, otherwise insert)
 
@@ -48,7 +57,7 @@ export const upsertUser = async (data: NewUser) => {
     })
     .returning();
   return user;
-}
+} 
 // If user already exists → update it, If not → create new user
 
 
@@ -91,20 +100,22 @@ export const getProductsByUserId = async (userId: string) => {
 };
 
 // update product (price can also be updated)
+type UpdateProduct = Partial<
+  Omit<NewProduct, "id" | "userId" | "createdAt" | "updatedAt">
+>;
 export const updateProduct = async (
   id: string,
-  data: Partial<NewProduct>
+  data: UpdateProduct
 ) => {
-  const existingProduct = await getProductById(id);
-  if (!existingProduct) {
-    throw new Error(`Product with id ${id} not found`);
-  }
-
   const [product] = await db
     .update(products)
-    .set(data) // can include price here
+    .set(data)
     .where(eq(products.id, id))
     .returning();
+
+  if (!product) {
+    throw new Error(`Product with id ${id} not found`);
+  }
 
   return product;
 };
@@ -179,9 +190,12 @@ export const getCommentsByProductId = async (productId: string) => {
 
 
 // update Comment
+type UpdateComment = Partial<
+  Omit<NewComment, "id" | "userId" | "productId" | "createdAt" | "updatedAt">
+>;
 export const updateComment = async (  
   id: string,  
-  data: Partial<NewComment>  
+  data: UpdateComment  
 ) => {  
   const [comment] = await db  
     .update(comments)  
@@ -199,16 +213,14 @@ export const updateComment = async (
 
 // delete Comment
 export const deleteComment = async (id: string) => {
-  const existingComment = await getCommentById(id);
-
-  if (!existingComment) {
-    throw new Error(`Comment with id ${id} not found`);
-  }
-
   const [comment] = await db
     .delete(comments)
     .where(eq(comments.id, id))
     .returning();
+
+  if (!comment) {
+    throw new Error(`Comment with id ${id} not found`);
+  }
 
   return comment;
 };
