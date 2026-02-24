@@ -12,6 +12,7 @@ import {
 // USER QUERIES
 export const createUser = async (data: NewUser) => {
   const [user] = await db.insert(users).values(data).returning(); // it return array so destructuring [user]
+  
   return user;
 };
 
@@ -109,19 +110,18 @@ export const updateProduct = async (
 };
 
 
-export const deleteProduct = async (id: string) => {
-  const existingProduct = await getProductById(id);
-  if (!existingProduct) {
-    throw new Error(`Product with id ${id} not found`);
-  }
+export const deleteProduct = async (id: string) => {  
+  const [product] = await db  
+    .delete(products)  
+    .where(eq(products.id, id))  
+    .returning();  
 
-  const [product] = await db
-    .delete(products)
-    .where(eq(products.id, id))
-    .returning();
+  if (!product) {  
+    throw new Error(`Product with id ${id} not found`);  
+  }  
 
-  return product;
-};
+  return product;  
+};  
 
 
 // COMMENT QUERIES
@@ -179,24 +179,22 @@ export const getCommentsByProductId = async (productId: string) => {
 
 
 // update Comment
-export const updateComment = async (
-  id: string,
-  data: Partial<NewComment>
-) => {
-  const existingComment = await getCommentById(id);
+export const updateComment = async (  
+  id: string,  
+  data: Partial<NewComment>  
+) => {  
+  const [comment] = await db  
+    .update(comments)  
+    .set(data)  
+    .where(eq(comments.id, id))  
+    .returning();  
 
-  if (!existingComment) {
-    throw new Error(`Comment with id ${id} not found`);
-  }
+  if (!comment) {  
+    throw new Error(`Comment with id ${id} not found`);  
+  }  
 
-  const [comment] = await db
-    .update(comments)
-    .set(data)
-    .where(eq(comments.id, id))
-    .returning();
-
-  return comment;
-};
+  return comment;  
+};  
 
 // delete Comment
 export const deleteComment = async (id: string) => {
