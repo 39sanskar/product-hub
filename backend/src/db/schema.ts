@@ -6,7 +6,7 @@ import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),  // here using clerkId as the user id
-  email: varchar("email").notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
   name: text("name"),
   imageUrl: text("image_url"),
 
@@ -112,6 +112,19 @@ export type NewProduct = typeof products.$inferInsert; // This creates a TypeScr
 
 export type Comment = typeof comments.$inferSelect;  // This creates a TypeScript type for data you SELECT from the database.
 export type NewComment = typeof comments.$inferInsert; // This creates a TypeScript type for data you INSERT into the database.
+
+// ============= UPDATE TYPES (SAFE) =============
+export type UpdateUser = Partial<
+  Omit<NewUser, "id" | "createdAt" | "updatedAt">
+>;
+
+export type UpdateProduct = Partial<
+  Omit<NewProduct, "id" | "userId" | "createdAt" | "updatedAt">
+>;
+
+export type UpdateComment = Partial<
+  Omit<NewComment, "id" | "userId" | "productId" | "createdAt" | "updatedAt">
+>;
 
 /*
 
