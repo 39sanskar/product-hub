@@ -39,10 +39,3 @@ app.listen(port, () => console.log("Server is up and running on PORT:", port));
 
 
 
-
-/*
-
-app.use(clerkMiddleware());  // The clerkMiddleware() function checks the request's cookies and headers for a session JWT and, if found, attaches the Auth object to the request object under the auth key.
-
-`credentials: true` allows the frontend to send cookies to the backend so that we can authenticate the user.
-*/

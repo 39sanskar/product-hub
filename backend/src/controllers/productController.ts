@@ -98,6 +98,63 @@ export const updateProduct = async (req: Request, res: Response) => {
     const { id } = req.params;   // get the product id from the params 
     const { title, description, imageUrl, price } = req.body;
 
+    // Validate partial update payload (types and non-emptiness, similar to createProduct)
+    const updates: {
+      title?: string;
+      description?: string;
+      imageUrl?: string;
+      price?: number;
+    } = {};
+
+    if (
+      title === undefined &&
+      description === undefined &&
+      imageUrl === undefined &&
+      price === undefined
+    ) {
+      return res.status(400).json({ error: "No fields provided to update" });
+    }
+
+    if (title !== undefined) {
+      if (typeof title !== "string" || !title.trim()) {
+        return res
+          .status(400)
+          .json({ error: "Title must be a non-empty string when provided" });
+      }
+      updates.title = title.trim();
+    }
+
+    if (description !== undefined) {
+      if (typeof description !== "string" || !description.trim()) {
+        return res.status(400).json({
+          error: "Description must be a non-empty string when provided",
+        });
+      }
+      updates.description = description.trim();
+    }
+
+    if (imageUrl !== undefined) {
+      if (typeof imageUrl !== "string" || !imageUrl.trim()) {
+        return res.status(400).json({
+          error: "Image URL must be a non-empty string when provided",
+        });
+      }
+      updates.imageUrl = imageUrl.trim();
+    }
+
+    if (price !== undefined) {
+      const numericPrice =
+        typeof price === "string" ? Number(price) : Number(price);
+
+      if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+        return res.status(400).json({
+          error: "Price must be a positive number when provided",
+        });
+      }
+
+      updates.price = numericPrice;
+    }
+
     // Check if product exists and belongs to user
     const existingProduct = await queries.getProductById(id as string);
     if (!existingProduct) {
