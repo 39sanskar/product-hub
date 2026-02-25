@@ -11,14 +11,21 @@ if (!ENV.DATABASE_URL) {
 const pool = new Pool({ connectionString: ENV.DATABASE_URL }); // bydefault this is equal to 10, if you want to increment then max and update the value.
 
 // log when first connection is made
+ // log when first connection is made
 pool.on("connect", () => {
   console.log("Database connected successfully!");
 });
 
-// log when an error occurs
-pool.on("error", (err) => {
-  console.log("Database connection error:", err);
-})
+// log unexpected errors on the pool
+pool.on("error", (err: Error) => {
+  console.error("Unexpected error in PostgreSQL connection pool", err);
+
+  if (process.env.NODE_ENV === "production") {
+    // Fail fast in production so the process manager can restart with a healthy pool
+    process.exit(1);
+  }
+});
+
 
 export const db = drizzle({ client: pool, schema }); // db is the variable we will be use in the future.
 

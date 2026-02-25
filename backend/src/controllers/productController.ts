@@ -1,0 +1,227 @@
+import type { Request, Response } from "express";
+
+import * as queries from "../db/queries";
+import { getAuth } from "@clerk/express";
+
+// Get all products (public)
+export const getAllProducts = async (req: Request, res: Response) => {
+  try {
+    const products = await queries.getAllProducts();
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Error getting products:", error);
+    res.status(500).json({ error: "Failed to get products" });
+  }
+};
+
+// Get products by current user (protected)
+export const getMyProducts = async (req: Request, res: Response) => {
+  try {
+    const { userId } = getAuth(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const products = await queries.getProductsByUserId(userId);
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Error getting user products:", error);
+    res.status(500).json({ error: "Failed to get user products" });
+  }
+};
+
+// Get single product by ID (public)
+export const getProductById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const product = await queries.getProductById(id as string);
+
+    if (!product) return res.status(404).json({ error: "Product not found" });
+
+    res.status(200).json(product);
+  } catch (error) {
+    console.error("Error getting product:", error);
+    res.status(500).json({ error: "Failed to get product" });
+  }
+};
+
+// Create product (protected)
+export const createProduct = async (req: Request, res: Response) => {
+  try {
+    const { userId } = getAuth(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { title, description, imageUrl, price } = req.body;
+
+    // STEP 1: Type validation
+    if (
+      typeof title !== "string" ||
+      typeof description !== "string" ||
+      typeof imageUrl !== "string" ||
+      typeof price !== "number"
+    ) {
+      return res.status(400).json({ error: "Invalid input types" });
+    }
+
+    // STEP 2: Empty validation 
+    if (
+      !title.trim() ||
+      !description.trim() ||
+      !imageUrl.trim() ||
+      price === undefined
+    ) {
+      return res.status(400).json({
+        error: "Title, description, imageUrl and price are required",
+      });
+    }
+
+    // return product from queries.ts
+    const product = await queries.createProduct({
+      title,
+      description,
+      imageUrl,
+      price,
+      userId,
+    });
+
+    res.status(201).json(product);
+  } catch (error) {
+    console.error("Error creating product:", error);
+    res.status(500).json({ error: "Failed to create product" });
+  }
+};
+
+// Update product (protected - owner only)
+export const updateProduct = async (req: Request, res: Response) => {
+  try {
+    const { userId } = getAuth(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { id } = req.params;   // get the product id from the params 
+    const { title, description, imageUrl, price } = req.body;
+
+    // Validate partial update payload (types and non-emptiness, similar to createProduct)
+    const updates: {
+      title?: string;
+      description?: string;
+      imageUrl?: string;
+      price?: number;
+    } = {};
+
+    if (
+      title === undefined &&
+      description === undefined &&
+      imageUrl === undefined &&
+      price === undefined
+    ) {
+      return res.status(400).json({ error: "No fields provided to update" });
+    }
+
+    if (title !== undefined) {
+      if (typeof title !== "string" || !title.trim()) {
+        return res
+          .status(400)
+          .json({ error: "Title must be a non-empty string when provided" });
+      }
+      updates.title = title.trim();
+    }
+
+    if (description !== undefined) {
+      if (typeof description !== "string" || !description.trim()) {
+        return res.status(400).json({
+          error: "Description must be a non-empty string when provided",
+        });
+      }
+      updates.description = description.trim();
+    }
+
+    if (imageUrl !== undefined) {
+      if (typeof imageUrl !== "string" || !imageUrl.trim()) {
+        return res.status(400).json({
+          error: "Image URL must be a non-empty string when provided",
+        });
+      }
+      updates.imageUrl = imageUrl.trim();
+    }
+
+    if (price !== undefined) {
+      const numericPrice =
+        typeof price === "string" ? Number(price) : Number(price);
+
+      if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+        return res.status(400).json({
+          error: "Price must be a positive number when provided",
+        });
+      }
+
+      updates.price = numericPrice;
+    }
+
+    // Check if product exists and belongs to user
+    const existingProduct = await queries.getProductById(id as string);
+    if (!existingProduct) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    if (existingProduct.userId !== userId) {
+      res.status(403).json({ error: "You can only update your own products" });
+      return;
+    }
+
+    const product = await queries.updateProduct(id as string, {
+      title,
+      price,
+      description,
+      imageUrl,
+    });
+
+    res.status(200).json(product);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({ error: "Failed to update product" });
+  }
+};
+
+// Delete product (protected - owner only)
+export const deleteProduct = async (req: Request, res: Response) => {
+  try {
+    const { userId } = getAuth(req);  // this is login userId 
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { id } = req.params;
+
+    // Check if product exists and belongs to user
+    const existingProduct = await queries.getProductById(id as string);
+    if (!existingProduct) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    // existingProduct.userId => this is provided by database
+    if (existingProduct.userId !== userId) {
+      res.status(403).json({ error: "You can only delete your own products" });
+      return;
+    }
+
+    await queries.deleteProduct(id as string);
+    res.status(200).json({ message: "Product deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    res.status(500).json({ error: "Failed to delete product" });
+  }
+};
+
+
+
+
+/*
+What is req.params?
+In Express.js, req.params is an object that holds route parameters from the URL.
+
+What does this line do?
+const { id } = req.params;
+
+This is just a shorter way of writing:
+const id = req.params.id;
+
+*/
+
